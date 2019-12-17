@@ -10,6 +10,7 @@ var (
 	ERR_ELEMENT_NOTFOUND_OR_TIMEOUT = errors.New("element not found or execute timeout")
 	ERR_SCREEN_CONFIG_INVALID       = errors.New("screen configure invalid")
 	ERR_SCREENSOT_CONFIG_INVALID    = errors.New("screenshot configure invalid")
+	ERR_STEPDEFINED_REPEAT          = errors.New("step definitions repeat")
 )
 
 func ErrorCN(err error) string {

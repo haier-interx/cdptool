@@ -11,22 +11,24 @@ func TestPipeline_Execute(t *testing.T) {
 	yml := `id: vue-element-admin
 timeout: 5s
 steps:
-  - type: deviceScreen
-  - type: language
-  - type: navigate
+  - type: _deviceScreen_
+  - type: _language_
+  - type: _navigate_
     url: 'https://panjiachen.gitee.io/vue-element-admin/#/login?redirect=%2Fdashboard'
-  #- type: dump
-  - type: input
+  #- type: _dump_
+  - type: _input_
     sel: '.el-input__inner'
     node_idx: 1
     input: 'admin123'
-  - type: click
+  - type: _click_
     sel: "button"
-  - type: screenshot
+  - type: _javascript_
+    javascript: "window.location.href"
+  - type: _screenshot_
     sel: ".app-main"
     screenshot: 
       quality: 90
-  - type: performance`
+  - type: _performance_`
 
 	p := new(Pipeline)
 	err := yaml.Unmarshal([]byte(yml), p)
@@ -34,11 +36,12 @@ steps:
 		t.Fatal(err)
 	}
 
-	ret := p.Run(context.Background())
+	ret := p.Run(context.Background(), nil)
+	t.Logf("error step index was %d", ret.ErrorStepIdx())
 	if ret.ErrorStepIdx() != -1 {
 		t.Fatal(ret.ErrorCN())
 	}
 
-	fmt.Printf("performance: %+v\n", ret.PerformanceResults()[0])
-
+	fmt.Printf("javascript: %s\n", *ret.JavaScriptResult[0])
+	fmt.Printf("performance: %+v\n", ret.Performances[0].Metrics())
 }

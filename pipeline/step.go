@@ -2,9 +2,9 @@ package pipeline
 
 import (
 	"cdptool/action"
+	"cdptool/models"
 	"context"
 	"fmt"
-	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/chromedp"
 	"time"
 )
@@ -12,16 +12,17 @@ import (
 type StepType string
 
 const (
-	STEP_NAVIGATE      = "navigate"
-	STEP_SHOW          = "show"
-	STEP_INPUT         = "input"
-	STEP_CLICK         = "click"
-	STEP_LANGUAGE      = "language"
-	STEP_DEVICE_SCREEN = "deviceScreen"
-	STEP_SCREENSHOT    = "screenshot"
-	STEP_PERFORMANCE   = "performance"
-	STEP_JAVASCRIPT    = "javascript"
-	STEP_DUMP          = "dump"
+	STEP_NAVIGATE      = "_navigate_"
+	STEP_WAIT          = "_wait_"
+	STEP_INPUT         = "_input_"
+	STEP_CLICK         = "_click_"
+	STEP_LANGUAGE      = "_language_"
+	STEP_DEVICE_SCREEN = "_deviceScreen_"
+	STEP_SCREENSHOT    = "_screenshot_"
+	STEP_PERFORMANCE   = "_performance_"
+	STEP_JAVASCRIPT    = "_javascript_"
+	STEP_DUMP          = "_dump_"
+	STEP_NETWORK       = "_network_"
 )
 
 var (
@@ -33,6 +34,8 @@ var (
 )
 
 type Step struct {
+	id string
+
 	Type    string `json:"type" yaml:"type"`
 	Sel     string `json:"sel" yaml:"sel"`
 	NodeIdx int    `json:"node_idx" yaml:"node_idx"`
@@ -43,8 +46,6 @@ type Step struct {
 	Screen     *Screen     `json:"screen"`
 	Language   string      `json:"language"`
 	Url        string      `json:"url"`
-
-	performance *action.PerformanceResult
 }
 
 type Screenshot struct {
@@ -57,28 +58,29 @@ type Screen struct {
 	Mobile bool  `json:"mobile"` // Whether to emulate mobile device. This includes viewport meta tag, overlay scrollbars, text autosizing and more.
 }
 
-func (s *Step) ActionWithCtx(ctx context.Context, id string, data interface{}) (chromedp.Tasks, error) {
-	tasks, err := s.Action(id, data)
+func (s *Step) SetId(id string) {
+	s.id = id
+}
+
+func (s *Step) Id() string {
+	return s.id
+}
+
+func (s *Step) ActionWithCtx(ctx context.Context, ret *Result, cds *CustomDefinitions) (chromedp.Tasks, error) {
+	tasks, err := s.Action(ret, cds)
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]chromedp.Action, len(tasks))
+	ts := make([]chromedp.Action, len(tasks))
 	for i, task := range tasks {
-		ret[i] = action.Wrap(ctx, task)
+		ts[i] = action.Wrap(ctx, task)
 	}
 
-	return ret, nil
+	return ts, nil
 }
 
-func nodeIdSel(nodeIDs []cdp.NodeID, idx int) interface{} {
-	if len(nodeIDs) < idx+1 {
-		return ""
-	}
-	return nodeIDs[idx]
-}
-
-func (s *Step) Action(id string, data interface{}) (chromedp.Tasks, error) {
+func (s *Step) Action(ret *Result, cds *CustomDefinitions) (chromedp.Tasks, error) {
 	tasks := make([]chromedp.Action, 0)
 
 	queryOpt := chromedp.ByQuery
@@ -98,14 +100,19 @@ func (s *Step) Action(id string, data interface{}) (chromedp.Tasks, error) {
 			tasks = append(tasks, chromedp.WaitReady(s.Sel, queryOpt))
 		}
 		tasks = append(tasks, chromedp.Navigate(s.Url))
-	case STEP_SHOW:
+
+	case STEP_WAIT:
 		tasks = append(tasks, chromedp.WaitReady(s.Sel, queryOpt))
+
 	case STEP_INPUT:
 		tasks = append(tasks, chromedp.SendKeys(s.Sel, s.Input, queryOpt))
+
 	case STEP_CLICK:
 		tasks = append(tasks, chromedp.Click(s.Sel, queryOpt))
+
 	case STEP_LANGUAGE: // 语言，比如中文
 		tasks = append(tasks, action.UserAgent("", s.Language))
+
 	case STEP_DEVICE_SCREEN: // 设备屏幕分辨率
 		if s.Screen == nil {
 			s.Screen = defaultDeviceScreen
@@ -114,6 +121,7 @@ func (s *Step) Action(id string, data interface{}) (chromedp.Tasks, error) {
 			return tasks, ERR_SCREEN_CONFIG_INVALID
 		}
 		tasks = append(tasks, action.DeviceScreen(s.Screen.Width, s.Screen.Height, s.Screen.Mobile))
+
 	case STEP_SCREENSHOT: // 截屏
 		if s.Screenshot == nil {
 			s.Screenshot = &Screenshot{80}
@@ -124,31 +132,45 @@ func (s *Step) Action(id string, data interface{}) (chromedp.Tasks, error) {
 		if s.Sel != "" {
 			tasks = append(tasks, chromedp.WaitReady(s.Sel, queryOpt))
 		}
-		filename := fmt.Sprintf("%s.%d.png", id, time.Now().UnixNano())
+		filename := fmt.Sprintf("%s.%d.png", s.id, time.Now().UnixNano())
 		tasks = append(tasks, action.FullScreenshot(s.Screenshot.Quality, filename))
 
-	case STEP_PERFORMANCE:
-		pr := data.(*action.PerformanceResult)
+	case STEP_PERFORMANCE: // performance
+		pr := new(models.PerformanceTiming)
+		ret.Performances = append(ret.Performances, pr)
 		tasks = append(tasks, action.Performance(pr))
-	case STEP_JAVASCRIPT:
-		var no_receive bool
-		if data == nil {
-			data = make([]byte, 0)
-			no_receive = true
-		}
-		tasks = append(tasks, chromedp.Evaluate(s.JavaScript, data))
-		if no_receive {
-			tasks = append(tasks, action.Debug(data))
-		}
+
+	case STEP_JAVASCRIPT: //run JavaScript
+		jsr := new([]byte)
+		ret.JavaScriptResult = append(ret.JavaScriptResult, jsr)
+		tasks = append(tasks, chromedp.Evaluate(s.JavaScript, jsr))
+
+	case STEP_NETWORK:
+
 	case STEP_DUMP:
 		tasks = append(tasks, action.Dump())
-	default:
-		return nil, ERR_STEPTYPE_INVALID
+
+	default: // 非内置
+		if cds == nil {
+			return nil, ERR_STEPTYPE_INVALID
+		}
+
+		// custom defined step type 自定义步骤
+		sg, found := cds.Steps(s.Type)
+		if !found {
+			return nil, ERR_STEPTYPE_INVALID
+		}
+
+		// every step in step group
+		for _, step_tmp := range sg.Steps {
+			tasks_tmp, err := step_tmp.Action(ret, cds)
+			if err != nil {
+				return nil, err
+			}
+
+			tasks = append(tasks, tasks_tmp...)
+		}
 	}
 
 	return tasks, nil
-}
-
-func (s *Step) Performance() *action.PerformanceResult {
-	return s.performance
 }

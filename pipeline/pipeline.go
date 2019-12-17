@@ -12,15 +12,11 @@ import (
 type Pipeline struct {
 	Id      string        `json:"id"`
 	Timeout time.Duration `json:"timeout"`
-	Steps   []Step        `json:"steps"`
+	Steps   []*Step       `json:"steps"`
 }
 
-func (p *Pipeline) Run(ctx context.Context) (ret *Result) {
-	ret = &Result{
-		executingIdx: -1,
-		performances: make([]*action.PerformanceResult, 0),
-	}
-
+func (p *Pipeline) Run(ctx context.Context, cds *CustomDefinitions) (ret *Result) {
+	ret = NewResult()
 	if p.Id == "" {
 		ret.error = ERR_PIPELINE_ID_REQUIRED
 		return
@@ -32,30 +28,26 @@ func (p *Pipeline) Run(ctx context.Context) (ret *Result) {
 	ctx_timeout, cancel := context.WithTimeout(ctx, p.Timeout)
 	defer cancel()
 
-	ctx_chromedp, cancel2 := chromedp.NewContext(context.Background())
-	defer chromedp.Cancel(ctx_chromedp)
-	defer cancel2()
-
 	// actions
 	actions := make([]chromedp.Action, 0)
 	for i, step := range p.Steps {
-		var data interface{}
-		if step.Type == STEP_PERFORMANCE {
-			pr := new(action.PerformanceResult)
-			ret.performances = append(ret.performances, pr)
-			data = pr
-		}
+		step.SetId(p.GenerateStepId(step, i))
 
-		actions_tmp, err := step.ActionWithCtx(ctx_timeout, fmt.Sprintf("%s-%d", p.Id, i), data)
+		actions_tmp, err := step.ActionWithCtx(ctx_timeout, ret, cds)
 		if err != nil {
-			ret.error = fmt.Errorf("Step%d: %w", i, err)
+			ret.executingIdx = i
+			ret.error = fmt.Errorf("%s: %w", step.Id(), err)
 			return
 		}
+
 		actions = append(actions, SetExecutingIdxAction(i, &ret.executingIdx))
 		actions = append(actions, actions_tmp...)
 	}
 
 	// run
+	ctx_chromedp, cancel2 := chromedp.NewContext(context.Background())
+	defer cancel2()
+	defer chromedp.Cancel(ctx_chromedp)
 	err := chromedp.Run(ctx_chromedp, actions...)
 	if err != nil {
 		switch err {
@@ -82,42 +74,13 @@ func (p *Pipeline) Run(ctx context.Context) (ret *Result) {
 	return
 }
 
+func (p *Pipeline) GenerateStepId(s *Step, idx int) string {
+	return fmt.Sprintf("%s_%d_%s", p.Id, idx, s.Type)
+}
+
 func SetExecutingIdxAction(i int, executingIdx *int) chromedp.Action {
 	return chromedp.ActionFunc(func(ctx context.Context) error {
 		*executingIdx = i
 		return nil
 	})
-}
-
-type Result struct {
-	executingIdx int
-	error        error
-	performances []*action.PerformanceResult
-}
-
-func (p *Result) Error() error {
-	return p.error
-}
-
-func (p *Result) ErrorCN() string {
-	if p.error == nil {
-		return ""
-	}
-
-	return fmt.Sprintf("执行步骤%d时失败：%s", p.executingIdx+1, ErrorCN(p.error))
-}
-
-func (p *Result) ErrorStepIdx() int {
-	if p.error == nil {
-		return -1
-	}
-	return p.executingIdx
-}
-
-func (p *Result) ExecutingIdx() int {
-	return p.executingIdx
-}
-
-func (p *Result) PerformanceResults() []*action.PerformanceResult {
-	return p.performances
 }
