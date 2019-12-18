@@ -32,15 +32,22 @@ func (p *Pipeline) Run(ctx context.Context, cds *CustomDefinitions) (ret *Result
 	actions := make([]chromedp.Action, 0)
 	for i, step := range p.Steps {
 		step.SetId(p.GenerateStepId(step, i))
-
 		actions_tmp, err := step.ActionWithCtx(ctx_timeout, ret, cds)
 		if err != nil {
-			ret.executingIdx = i
 			ret.error = fmt.Errorf("%s: %w", step.Id(), err)
 			return
 		}
 
-		actions = append(actions, SetExecutingIdxAction(i, &ret.executingIdx))
+		// save execute record
+		e_tmp := &ExecutingStep{p.Id, i}
+		actions = append(actions,
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				ret.PutExecuting(e_tmp)
+				return nil
+			}),
+		)
+
+		// real action
 		actions = append(actions, actions_tmp...)
 	}
 
@@ -61,7 +68,7 @@ func (p *Pipeline) Run(ctx context.Context, cds *CustomDefinitions) (ret *Result
 		ctx_tmp, cancel_tmp := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel_tmp()
 
-		file_name := fmt.Sprintf("%s-%d-error.%d.png", p.Id, ret.ErrorStepIdx(), time.Now().UnixNano())
+		file_name := fmt.Sprintf("%s-error.%d.png", ret.LastExecutingStep().Id(), time.Now().UnixNano())
 		ss_action := action.Wrap(ctx_tmp, action.FullScreenshot(90, file_name))
 		err_tmp := chromedp.Run(ctx_chromedp, ss_action)
 		if err_tmp != nil {
@@ -76,11 +83,4 @@ func (p *Pipeline) Run(ctx context.Context, cds *CustomDefinitions) (ret *Result
 
 func (p *Pipeline) GenerateStepId(s *Step, idx int) string {
 	return fmt.Sprintf("%s_%d_%s", p.Id, idx, s.Type)
-}
-
-func SetExecutingIdxAction(i int, executingIdx *int) chromedp.Action {
-	return chromedp.ActionFunc(func(ctx context.Context) error {
-		*executingIdx = i
-		return nil
-	})
 }

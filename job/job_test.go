@@ -33,7 +33,7 @@ definitions:
           node_idx: 1
           input: 'admin123'
         - type: _click_
-          sel: "button1"
+          sel: "button"
         - type: _wait_
           sel: ".app-main"`
 

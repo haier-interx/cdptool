@@ -80,8 +80,14 @@ func (s *Step) ActionWithCtx(ctx context.Context, ret *Result, cds *CustomDefini
 	return ts, nil
 }
 
-func (s *Step) Action(ret *Result, cds *CustomDefinitions) (chromedp.Tasks, error) {
-	tasks := make([]chromedp.Action, 0)
+func (s *Step) Action(ret *Result, cds *CustomDefinitions) (tasks chromedp.Tasks, err error) {
+	defer func() {
+		if err != nil {
+			ret.Failed(err)
+		}
+	}()
+
+	tasks = make([]chromedp.Action, 0)
 
 	queryOpt := chromedp.ByQuery
 	if s.Sel != "" {
@@ -94,7 +100,8 @@ func (s *Step) Action(ret *Result, cds *CustomDefinitions) (chromedp.Tasks, erro
 	switch s.Type {
 	case STEP_NAVIGATE:
 		if s.Url == "" {
-			return tasks, ERR_NAVIGATE_URL_REQUIRED
+			err = ERR_NAVIGATE_URL_REQUIRED
+			return
 		}
 		if s.Sel != "" {
 			tasks = append(tasks, chromedp.WaitReady(s.Sel, queryOpt))
@@ -118,7 +125,8 @@ func (s *Step) Action(ret *Result, cds *CustomDefinitions) (chromedp.Tasks, erro
 			s.Screen = defaultDeviceScreen
 		}
 		if s.Screen.Width <= 0 || s.Screen.Height <= 0 {
-			return tasks, ERR_SCREEN_CONFIG_INVALID
+			err = ERR_SCREEN_CONFIG_INVALID
+			return
 		}
 		tasks = append(tasks, action.DeviceScreen(s.Screen.Width, s.Screen.Height, s.Screen.Mobile))
 
@@ -127,7 +135,8 @@ func (s *Step) Action(ret *Result, cds *CustomDefinitions) (chromedp.Tasks, erro
 			s.Screenshot = &Screenshot{80}
 		}
 		if s.Screenshot.Quality <= 0 {
-			return tasks, ERR_SCREENSOT_CONFIG_INVALID
+			err = ERR_SCREENSOT_CONFIG_INVALID
+			return
 		}
 		if s.Sel != "" {
 			tasks = append(tasks, chromedp.WaitReady(s.Sel, queryOpt))
@@ -152,25 +161,46 @@ func (s *Step) Action(ret *Result, cds *CustomDefinitions) (chromedp.Tasks, erro
 
 	default: // 非内置
 		if cds == nil {
-			return nil, ERR_STEPTYPE_INVALID
+			err = ERR_STEPTYPE_INVALID
+			return
 		}
 
 		// custom defined step type 自定义步骤
 		sg, found := cds.Steps(s.Type)
 		if !found {
-			return nil, ERR_STEPTYPE_INVALID
+			err = ERR_STEPTYPE_INVALID
+			return
 		}
 
 		// every step in step group
-		for _, step_tmp := range sg.Steps {
-			tasks_tmp, err := step_tmp.Action(ret, cds)
+		for sub_idx, sub_step := range sg.Steps {
+			sub_es := &ExecutingStep{sg.Id, sub_idx}
+
+			var sub_tasks chromedp.Tasks
+			sub_tasks, err = sub_step.Action(ret, cds)
 			if err != nil {
-				return nil, err
+				return
 			}
 
-			tasks = append(tasks, tasks_tmp...)
+			tasks = append(tasks,
+				chromedp.ActionFunc(func(ctx context.Context) error {
+					ret.PutExecuting(sub_es)
+					return nil
+				}),
+			)
+
+			tasks = append(tasks, sub_tasks...)
 		}
 	}
 
-	return tasks, nil
+	return
+}
+
+func IsBuildInStep(id string) bool {
+	switch id {
+	case STEP_NAVIGATE, STEP_WAIT, STEP_INPUT, STEP_CLICK, STEP_LANGUAGE, STEP_DEVICE_SCREEN, STEP_SCREENSHOT, STEP_PERFORMANCE, STEP_JAVASCRIPT, STEP_DUMP, STEP_NETWORK:
+		return true
+	default:
+		return false
+	}
 }
