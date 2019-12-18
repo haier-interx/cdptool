@@ -37,8 +37,8 @@ steps:
 	}
 
 	ret := p.Run(context.Background(), nil)
-	t.Logf("error step index was %d", ret.ErrorStepIdx())
-	if ret.ErrorStepIdx() != -1 {
+	t.Logf("error step index was %s", ret.LastExecutingStep().Id())
+	if ret.error != nil {
 		t.Fatal(ret.ErrorCN())
 	}
 
