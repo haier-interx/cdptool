@@ -33,3 +33,13 @@ func (i *Instance) Start(ctx context.Context) []*pipeline.Result {
 	}
 	return rets
 }
+
+func (i *Instance) Check(ctx context.Context) error {
+	for _, p := range i.Pipelines {
+		_, ret_tmp := p.Parse(ctx, i.Definitions)
+		if ret_tmp.Error() != nil {
+			return ret_tmp.Error()
+		}
+	}
+	return nil
+}

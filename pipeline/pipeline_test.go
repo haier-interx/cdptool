@@ -24,9 +24,9 @@ steps:
     sel: "button"
   - type: _javascript_
     javascript: "window.location.href"
-  - type: _screenshot_
+  - type: _screenshots_
     sel: ".app-main"
-    screenshot: 
+    screenshots: 
       quality: 90
   - type: _performance_`
 

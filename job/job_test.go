@@ -12,9 +12,9 @@ func TestInstance_Start(t *testing.T) {
     steps:
       - type: init
       - type: login
-      - type: _screenshot_
+      - type: _screenshots_
         sel: '.app-main'
-        screenshot: 
+        screenshots: 
           quality: 90
       - type: _performance_
 
@@ -45,7 +45,7 @@ definitions:
 	rets := p.Start(context.Background())
 	for idx, ret := range rets {
 		if ret.Error() != nil {
-			t.Fatalf("%s: %s", p.Pipelines[idx].Id, ret.ErrorCN())
+			t.Fatalf("%s: %s", p.Pipelines[idx].Id, ret.Error())
 		}
 		t.Logf("%s: %+v", p.Pipelines[idx].Id, ret.Performances[0])
 	}

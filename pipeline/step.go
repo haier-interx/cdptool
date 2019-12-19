@@ -18,7 +18,7 @@ const (
 	STEP_CLICK         = "_click_"
 	STEP_LANGUAGE      = "_language_"
 	STEP_DEVICE_SCREEN = "_deviceScreen_"
-	STEP_SCREENSHOT    = "_screenshot_"
+	STEP_SCREENSHOTS   = "_screenshots_"
 	STEP_PERFORMANCE   = "_performance_"
 	STEP_JAVASCRIPT    = "_javascript_"
 	STEP_DUMP          = "_dump_"
@@ -40,15 +40,15 @@ type Step struct {
 	Sel     string `json:"sel" yaml:"sel"`
 	NodeIdx int    `json:"node_idx" yaml:"node_idx"`
 
-	Screenshot *Screenshot `json:"screenshot"`
-	Input      string      `json:"input"`
-	JavaScript string      `json:"javascript"`
-	Screen     *Screen     `json:"screen"`
-	Language   string      `json:"language"`
-	Url        string      `json:"url"`
+	Screenshots *Screenshots `json:"screenshots"`
+	Input       string       `json:"input"`
+	JavaScript  string       `json:"javascript"`
+	Screen      *Screen      `json:"screen"`
+	Language    string       `json:"language"`
+	Url         string       `json:"url"`
 }
 
-type Screenshot struct {
+type Screenshots struct {
 	Quality int64 `json:"quality"` //compression quality from range [0..100] (jpeg only)
 }
 
@@ -66,10 +66,11 @@ func (s *Step) Id() string {
 	return s.id
 }
 
-func (s *Step) ActionWithCtx(ctx context.Context, ret *Result, cds *CustomDefinitions) (chromedp.Tasks, error) {
+func (s *Step) ActionWithCtx(ctx context.Context, ret *Result, cds *CustomDefinitions) chromedp.Tasks {
 	tasks, err := s.Action(ret, cds)
 	if err != nil {
-		return nil, err
+		ret.Failed(err)
+		return nil
 	}
 
 	ts := make([]chromedp.Action, len(tasks))
@@ -77,7 +78,7 @@ func (s *Step) ActionWithCtx(ctx context.Context, ret *Result, cds *CustomDefini
 		ts[i] = action.Wrap(ctx, task)
 	}
 
-	return ts, nil
+	return ts
 }
 
 func (s *Step) Action(ret *Result, cds *CustomDefinitions) (tasks chromedp.Tasks, err error) {
@@ -130,19 +131,19 @@ func (s *Step) Action(ret *Result, cds *CustomDefinitions) (tasks chromedp.Tasks
 		}
 		tasks = append(tasks, action.DeviceScreen(s.Screen.Width, s.Screen.Height, s.Screen.Mobile))
 
-	case STEP_SCREENSHOT: // 截屏
-		if s.Screenshot == nil {
-			s.Screenshot = &Screenshot{80}
+	case STEP_SCREENSHOTS: // 截屏
+		if s.Screenshots == nil {
+			s.Screenshots = &Screenshots{80}
 		}
-		if s.Screenshot.Quality <= 0 {
-			err = ERR_SCREENSOT_CONFIG_INVALID
+		if s.Screenshots.Quality <= 0 {
+			err = ERR_SCREENSOTS_CONFIG_INVALID
 			return
 		}
 		if s.Sel != "" {
 			tasks = append(tasks, chromedp.WaitReady(s.Sel, queryOpt))
 		}
 		filename := fmt.Sprintf("%s.%d.png", s.id, time.Now().UnixNano())
-		tasks = append(tasks, action.FullScreenshot(s.Screenshot.Quality, filename))
+		tasks = append(tasks, action.FullScreenshot(s.Screenshots.Quality, filename))
 
 	case STEP_PERFORMANCE: // performance
 		pr := new(models.PerformanceTiming)
@@ -198,7 +199,7 @@ func (s *Step) Action(ret *Result, cds *CustomDefinitions) (tasks chromedp.Tasks
 
 func IsBuildInStep(id string) bool {
 	switch id {
-	case STEP_NAVIGATE, STEP_WAIT, STEP_INPUT, STEP_CLICK, STEP_LANGUAGE, STEP_DEVICE_SCREEN, STEP_SCREENSHOT, STEP_PERFORMANCE, STEP_JAVASCRIPT, STEP_DUMP, STEP_NETWORK:
+	case STEP_NAVIGATE, STEP_WAIT, STEP_INPUT, STEP_CLICK, STEP_LANGUAGE, STEP_DEVICE_SCREEN, STEP_SCREENSHOTS, STEP_PERFORMANCE, STEP_JAVASCRIPT, STEP_DUMP, STEP_NETWORK:
 		return true
 	default:
 		return false

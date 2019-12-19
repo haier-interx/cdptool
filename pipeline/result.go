@@ -6,8 +6,9 @@ import (
 )
 
 type Result struct {
-	error        error
-	ExecuteTrace []*ExecutingStep
+	parseErrorStep *ExecutingStep
+	error          error
+	ExecuteTrace   []*ExecutingStep
 
 	JavaScriptResult []*[]byte
 	Performances     []*models.PerformanceTiming
@@ -38,20 +39,41 @@ func (p *Result) Failed(err error) {
 	p.error = err
 }
 
-func (p *Result) Error() error {
-	return p.error
+func (p *Result) ParseFailed(id string, index int, err error) {
+	p.parseErrorStep = &ExecutingStep{id, index}
+	p.error = err
 }
 
-func (p *Result) ErrorCN() string {
+func (p *Result) Error() error {
 	if p.error == nil {
-		return ""
+		return nil
 	}
 
 	if len(p.ExecuteTrace) == 0 {
-		return fmt.Sprintf("执行失败：%s", ErrorCN(p.error))
+		if p.parseErrorStep != nil {
+			return fmt.Errorf("parse the %d step failed on task \"%s\"：%s", p.parseErrorStep.Index+1, p.parseErrorStep.Father, p.error)
+		} else {
+			return p.error
+		}
+	} else {
+		return fmt.Errorf("execute the %d step failed on task \"%s\"：%w", p.LastExecutingStep().Index+1, p.LastExecutingStep().Father, p.error)
+	}
+}
+
+func (p *Result) ErrorCN() error {
+	if p.error == nil {
+		return nil
+	}
+
+	if len(p.ExecuteTrace) == 0 {
+		if p.parseErrorStep != nil {
+			return fmt.Errorf("解析%s第%d步骤时失败：%s", p.parseErrorStep.Father, p.parseErrorStep.Index+1, ErrorCN(p.error))
+		} else {
+			return fmt.Errorf("%s", ErrorCN(p.error))
+		}
 	} else {
 		last_idx := len(p.ExecuteTrace) - 1
-		return fmt.Sprintf("执行%s第%d步骤时失败：%s", p.ExecuteTrace[last_idx].Father, p.ExecuteTrace[last_idx].Index, ErrorCN(p.error))
+		return fmt.Errorf("执行%s第%d步骤时失败：%s", p.ExecuteTrace[last_idx].Father, p.ExecuteTrace[last_idx].Index+1, ErrorCN(p.error))
 	}
 }
 
