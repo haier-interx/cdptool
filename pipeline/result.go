@@ -1,8 +1,8 @@
 package pipeline
 
 import (
-	"cdptool/models"
 	"fmt"
+	"github.com/haier-interx/cdptool/models"
 )
 
 type Result struct {

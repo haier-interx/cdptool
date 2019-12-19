@@ -1,8 +1,8 @@
 package job
 
 import (
-	"cdptool/pipeline"
 	"context"
+	"github.com/haier-interx/cdptool/pipeline"
 	"gopkg.in/yaml.v2"
 )
 

@@ -1,4 +1,4 @@
-module cdptool
+module github.com/haier-interx/cdptool
 
 go 1.13
 

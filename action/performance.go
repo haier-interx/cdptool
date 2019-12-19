@@ -1,8 +1,8 @@
 package action
 
 import (
-	"cdptool/models"
 	"github.com/chromedp/chromedp"
+	"github.com/haier-interx/cdptool/models"
 )
 
 const (

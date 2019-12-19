@@ -1,10 +1,10 @@
 package pipeline
 
 import (
-	"cdptool/action"
 	"context"
 	"fmt"
 	"github.com/chromedp/chromedp"
+	"github.com/haier-interx/cdptool/action"
 	"log"
 	"time"
 )
