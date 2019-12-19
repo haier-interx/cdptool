@@ -27,7 +27,13 @@ func (p *Pipeline) Run(ctx context.Context, cds *CustomDefinitions) (ret *Result
 	}
 
 	// run
-	ctx_chromedp, cancel2 := chromedp.NewContext(context.Background())
+	var ctx_parent context.Context
+	if ctx_tmp := chromedp.FromContext(ctx); ctx_tmp != nil {
+		ctx_parent = ctx
+	} else {
+		ctx_parent = context.Background()
+	}
+	ctx_chromedp, cancel2 := chromedp.NewContext(ctx_parent)
 	defer cancel2()
 	defer chromedp.Cancel(ctx_chromedp)
 	err := chromedp.Run(ctx_chromedp, actions...)
