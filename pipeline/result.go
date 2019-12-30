@@ -12,6 +12,9 @@ type Result struct {
 	error          error
 	ExecuteTrace   []*StepResult
 
+	StartTime    time.Time
+	InitDuration time.Duration
+
 	JavaScriptResult          []*[]byte
 	Performances              []*models.PerformanceTiming
 	NetworkPerformances       []*NetworkPerformance
@@ -27,7 +30,6 @@ type StepResult struct {
 	Type   string
 
 	StarTime time.Time
-	EndTime  time.Time
 	Duration time.Duration
 }
 
@@ -51,6 +53,7 @@ func NewResult(pipelineId string) *Result {
 		Performances:        make([]*models.PerformanceTiming, 0),
 		NetworkPerformances: make([]*NetworkPerformance, 0),
 		ScreenshotsFileName: make([]string, 0),
+		StartTime:           time.Now(),
 	}
 }
 
@@ -60,8 +63,7 @@ func (p *Result) SetStepStarted(e *StepResult) {
 }
 
 func (p *Result) SetStepOver(e *StepResult) {
-	e.EndTime = time.Now()
-	e.Duration = e.EndTime.Sub(e.StarTime)
+	e.Duration = time.Since(e.StarTime)
 }
 
 func (p *Result) Failed(err error) {

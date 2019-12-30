@@ -25,7 +25,6 @@ func (p *Pipeline) Run(ctx context.Context, cds *CustomDefinitions) (ret *Result
 	if ret.Error() != nil {
 		return
 	}
-
 	// run
 	var ctx_parent context.Context
 	if ctx_tmp := chromedp.FromContext(ctx); ctx_tmp != nil {
@@ -36,6 +35,8 @@ func (p *Pipeline) Run(ctx context.Context, cds *CustomDefinitions) (ret *Result
 	ctx_chromedp, cancel2 := chromedp.NewContext(ctx_parent)
 	defer cancel2()
 	defer chromedp.Cancel(ctx_chromedp)
+
+	ret.StartTime = time.Now()
 	err := chromedp.Run(ctx_chromedp, actions...)
 	if err != nil {
 		switch err {
@@ -78,6 +79,12 @@ func (p *Pipeline) Parse(ctx context.Context, cds *CustomDefinitions) (actions c
 
 	// actions
 	actions = make([]chromedp.Action, 0)
+	actions = append(actions,
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			ret.InitDuration = time.Since(ret.StartTime)
+			return nil
+		}))
+
 	for i, step := range p.Steps {
 		step.SetId(p.GenerateStepId(step, i))
 		actions_tmp := step.ActionWithCtx(ctx, ret, cds)

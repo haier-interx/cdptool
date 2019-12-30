@@ -49,11 +49,18 @@ steps:
 		fmt.Printf("network[%d]: %s %s %+v\n", i, item.Name, item.InitiatorType, item.Metrics())
 	}
 
-	for i, item := range ret.StepResult() {
-		fmt.Printf("step[%d] %s: %+v\n", i, p.Steps[i].Type, item)
-	}
-
 	for i, item := range ret.ScreenshotsFileName {
 		fmt.Printf("screenshots[%d]: %s\n", i, item)
 	}
+
+	fmt.Printf("init: %dms\n", ret.InitDuration.Milliseconds())
+
+	total := ret.InitDuration
+	for i, item := range ret.StepResult() {
+		//fmt.Printf("step[%d] %s %dms: %+v\n", i, p.Steps[i].Type, item.Duration.Milliseconds(), item)
+		fmt.Printf("step[%d] %s %dms\n", i, p.Steps[i].Type, item.Duration.Milliseconds())
+		total += item.Duration
+	}
+	fmt.Printf("total: %dms\n", total.Milliseconds())
+
 }
