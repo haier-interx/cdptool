@@ -85,7 +85,7 @@ func (p *Pipeline) Parse(ctx context.Context, cds *CustomDefinitions) (actions c
 		}
 
 		// save execute record
-		e_tmp := &StepResult{Father: p.Id, Index: i}
+		e_tmp := NewStepResult(p.Id, i, step.Type)
 		actions = append(actions,
 			chromedp.ActionFunc(func(ctx context.Context) error {
 				ret.SetStepStarted(e_tmp)

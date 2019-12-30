@@ -22,10 +22,19 @@ type NetworkPerformance = []*models.PerformanceTiming
 type StepResult struct {
 	Father string
 	Index  int
+	Type   string
 
 	StarTime time.Time
 	EndTime  time.Time
 	Duration time.Duration
+}
+
+func NewStepResult(father string, idx int, stepType string) *StepResult {
+	return &StepResult{
+		Father: father,
+		Index:  idx,
+		Type:   stepType,
+	}
 }
 
 func (es *StepResult) Id() string {
@@ -57,7 +66,7 @@ func (p *Result) Failed(err error) {
 }
 
 func (p *Result) ParseFailed(id string, index int, err error) {
-	p.parseErrorStep = &StepResult{Father: id, Index: index}
+	p.parseErrorStep = NewStepResult(id, index, "")
 	p.error = err
 }
 
@@ -96,7 +105,7 @@ func (p *Result) ErrorCN() error {
 
 func (p *Result) LastExecutingStep() *StepResult {
 	if len(p.ExecuteTrace) == 0 {
-		return &StepResult{Father: "", Index: 0}
+		return NewStepResult("", 0, "")
 	} else {
 		last_idx := len(p.ExecuteTrace) - 1
 		return p.ExecuteTrace[last_idx]

@@ -178,7 +178,7 @@ func (s *Step) Action(ret *Result, cds *CustomDefinitions) (tasks chromedp.Tasks
 
 		// every step in step group
 		for sub_idx, sub_step := range sg.Steps {
-			sub_es := &StepResult{Father: sg.Id, Index: sub_idx}
+			sub_es := NewStepResult(sg.Id, sub_idx, sub_step.Type)
 
 			var sub_tasks chromedp.Tasks
 			sub_tasks, err = sub_step.Action(ret, cds)

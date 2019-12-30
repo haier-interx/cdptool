@@ -5,6 +5,6 @@ go 1.13
 require (
 	github.com/chromedp/cdproto v0.0.0-20191114225735-6626966fbae4
 	github.com/chromedp/chromedp v0.5.2
-	github.com/spf13/cobra v0.0.5 // indirect
+	github.com/spf13/cobra v0.0.5
 	gopkg.in/yaml.v2 v2.2.7
 )
