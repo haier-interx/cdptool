@@ -27,7 +27,7 @@ steps:
   - type: _screenshots_
     sel: ".app-main"
     screenshots: 
-      quality: 90
+      quality: 20
   - type: _network_
   - type: _performance_`
 
@@ -51,5 +51,9 @@ steps:
 
 	for i, item := range ret.StepResult() {
 		fmt.Printf("step[%d] %s: %+v\n", i, p.Steps[i].Type, item)
+	}
+
+	for i, item := range ret.ScreenshotsFileName {
+		fmt.Printf("screenshots[%d]: %s\n", i, item)
 	}
 }

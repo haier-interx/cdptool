@@ -36,6 +36,7 @@ func FullScreenshot(quality int64, filename string) chromedp.Action {
 
 		// capture screenshot
 		buf, err = page.CaptureScreenshot().
+			WithFormat(page.CaptureScreenshotFormatJpeg).
 			WithQuality(quality).
 			WithClip(&page.Viewport{
 				X: contentSize.X,

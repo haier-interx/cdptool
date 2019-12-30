@@ -49,11 +49,13 @@ func (p *Pipeline) Run(ctx context.Context, cds *CustomDefinitions) (ret *Result
 		if p.ScreenshotsWhenFailed {
 			ctx_tmp, cancel_tmp := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel_tmp()
-			file_name := fmt.Sprintf("%s-error.%d.png", ret.LastExecutingStep().Id(), time.Now().UnixNano())
+			file_name := fmt.Sprintf("%s-error.%d.jpg", ret.LastExecutingStep().Id(), time.Now().UnixNano())
 			ss_action := action.Wrap(ctx_tmp, action.FullScreenshot(90, file_name))
 			err_tmp := chromedp.Run(ctx_chromedp, ss_action)
 			if err_tmp != nil {
 				log.Printf("screenshot action failed while execute error: %v", err_tmp)
+			} else {
+				ret.FailedScreenshotsFileName = file_name
 			}
 		}
 

@@ -142,8 +142,14 @@ func (s *Step) Action(ret *Result, cds *CustomDefinitions) (tasks chromedp.Tasks
 		if s.Sel != "" {
 			tasks = append(tasks, chromedp.WaitReady(s.Sel, queryOpt))
 		}
-		filename := fmt.Sprintf("%s.%d.png", s.id, time.Now().UnixNano())
-		tasks = append(tasks, action.FullScreenshot(s.Screenshots.Quality, filename))
+		filename := fmt.Sprintf("%s.%d.jpg", s.id, time.Now().UnixNano())
+		tasks = append(tasks,
+			action.FullScreenshot(s.Screenshots.Quality, filename),
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				ret.ScreenshotsFileName = append(ret.ScreenshotsFileName, filename)
+				return nil
+			}),
+		)
 
 	case STEP_PERFORMANCE: // performance
 		pr := new(models.PerformanceTiming)
