@@ -156,6 +156,9 @@ func (s *Step) Action(ret *Result, cds *CustomDefinitions) (tasks chromedp.Tasks
 		tasks = append(tasks, chromedp.Evaluate(s.JavaScript, jsr))
 
 	case STEP_NETWORK:
+		prs := new(NetworkPerformance)
+		ret.NetworkPerformances = append(ret.NetworkPerformances, prs)
+		tasks = append(tasks, action.Network(prs))
 
 	case STEP_DUMP:
 		tasks = append(tasks, action.Dump())
@@ -175,7 +178,7 @@ func (s *Step) Action(ret *Result, cds *CustomDefinitions) (tasks chromedp.Tasks
 
 		// every step in step group
 		for sub_idx, sub_step := range sg.Steps {
-			sub_es := &ExecutingStep{sg.Id, sub_idx}
+			sub_es := &StepResult{Father: sg.Id, Index: sub_idx}
 
 			var sub_tasks chromedp.Tasks
 			sub_tasks, err = sub_step.Action(ret, cds)
@@ -183,14 +186,25 @@ func (s *Step) Action(ret *Result, cds *CustomDefinitions) (tasks chromedp.Tasks
 				return
 			}
 
+			// pre action
 			tasks = append(tasks,
 				chromedp.ActionFunc(func(ctx context.Context) error {
-					ret.PutExecuting(sub_es)
+					ret.SetStepStarted(sub_es)
 					return nil
 				}),
 			)
 
+			// action
 			tasks = append(tasks, sub_tasks...)
+
+			// post action
+			// calculate the step duration
+			tasks = append(tasks,
+				chromedp.ActionFunc(func(ctx context.Context) error {
+					ret.SetStepOver(sub_es)
+					return nil
+				}),
+			)
 		}
 	}
 

@@ -3,36 +3,53 @@ package pipeline
 import (
 	"fmt"
 	"github.com/haier-interx/cdptool/models"
+	"time"
 )
 
 type Result struct {
-	parseErrorStep *ExecutingStep
+	PipelineId     string
+	parseErrorStep *StepResult
 	error          error
-	ExecuteTrace   []*ExecutingStep
+	ExecuteTrace   []*StepResult
 
-	JavaScriptResult []*[]byte
-	Performances     []*models.PerformanceTiming
+	JavaScriptResult    []*[]byte
+	Performances        []*models.PerformanceTiming
+	NetworkPerformances []*NetworkPerformance
 }
 
-type ExecutingStep struct {
+type NetworkPerformance = []*models.PerformanceTiming
+
+type StepResult struct {
 	Father string
 	Index  int
+
+	StarTime time.Time
+	EndTime  time.Time
+	Duration time.Duration
 }
 
-func (es *ExecutingStep) Id() string {
+func (es *StepResult) Id() string {
 	return fmt.Sprintf("%s-%d", es.Father, es.Index)
 }
 
-func NewResult() *Result {
+func NewResult(pipelineId string) *Result {
 	return &Result{
-		ExecuteTrace:     make([]*ExecutingStep, 0),
-		JavaScriptResult: make([]*[]byte, 0),
-		Performances:     make([]*models.PerformanceTiming, 0),
+		PipelineId:          pipelineId,
+		ExecuteTrace:        make([]*StepResult, 0),
+		JavaScriptResult:    make([]*[]byte, 0),
+		Performances:        make([]*models.PerformanceTiming, 0),
+		NetworkPerformances: make([]*NetworkPerformance, 0),
 	}
 }
 
-func (p *Result) PutExecuting(e *ExecutingStep) {
+func (p *Result) SetStepStarted(e *StepResult) {
+	e.StarTime = time.Now()
 	p.ExecuteTrace = append(p.ExecuteTrace, e)
+}
+
+func (p *Result) SetStepOver(e *StepResult) {
+	e.EndTime = time.Now()
+	e.Duration = e.EndTime.Sub(e.StarTime)
 }
 
 func (p *Result) Failed(err error) {
@@ -40,7 +57,7 @@ func (p *Result) Failed(err error) {
 }
 
 func (p *Result) ParseFailed(id string, index int, err error) {
-	p.parseErrorStep = &ExecutingStep{id, index}
+	p.parseErrorStep = &StepResult{Father: id, Index: index}
 	p.error = err
 }
 
@@ -77,11 +94,22 @@ func (p *Result) ErrorCN() error {
 	}
 }
 
-func (p *Result) LastExecutingStep() *ExecutingStep {
+func (p *Result) LastExecutingStep() *StepResult {
 	if len(p.ExecuteTrace) == 0 {
-		return &ExecutingStep{"", 0}
+		return &StepResult{Father: "", Index: 0}
 	} else {
 		last_idx := len(p.ExecuteTrace) - 1
 		return p.ExecuteTrace[last_idx]
 	}
+}
+
+func (p *Result) StepResult() []*StepResult {
+	rets := make([]*StepResult, 0)
+	for _, ret_tmp := range p.ExecuteTrace {
+		if ret_tmp.Father == p.PipelineId {
+			rets = append(rets, ret_tmp)
+		}
+	}
+
+	return rets
 }

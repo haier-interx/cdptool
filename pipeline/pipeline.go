@@ -64,7 +64,7 @@ func (p *Pipeline) Run(ctx context.Context, cds *CustomDefinitions) (ret *Result
 }
 
 func (p *Pipeline) Parse(ctx context.Context, cds *CustomDefinitions) (actions chromedp.Tasks, ret *Result) {
-	ret = NewResult()
+	ret = NewResult(p.Id)
 	if p.Id == "" {
 		ret.Failed(ERR_PIPELINE_ID_REQUIRED)
 		return
@@ -85,16 +85,24 @@ func (p *Pipeline) Parse(ctx context.Context, cds *CustomDefinitions) (actions c
 		}
 
 		// save execute record
-		e_tmp := &ExecutingStep{p.Id, i}
+		e_tmp := &StepResult{Father: p.Id, Index: i}
 		actions = append(actions,
 			chromedp.ActionFunc(func(ctx context.Context) error {
-				ret.PutExecuting(e_tmp)
+				ret.SetStepStarted(e_tmp)
 				return nil
 			}),
 		)
 
 		// real action
 		actions = append(actions, actions_tmp...)
+
+		// calculate the step duration
+		actions = append(actions,
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				ret.SetStepOver(e_tmp)
+				return nil
+			}),
+		)
 	}
 
 	return

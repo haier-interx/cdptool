@@ -28,6 +28,7 @@ steps:
     sel: ".app-main"
     screenshots: 
       quality: 90
+  - type: _network_
   - type: _performance_`
 
 	p := new(Pipeline)
@@ -44,4 +45,11 @@ steps:
 
 	fmt.Printf("javascript: %s\n", *ret.JavaScriptResult[0])
 	fmt.Printf("performance: %+v\n", ret.Performances[0].Metrics())
+	for i, item := range *ret.NetworkPerformances[0] {
+		fmt.Printf("network[%d]: %s %s %+v\n", i, item.Name, item.InitiatorType, item.Metrics())
+	}
+
+	for i, item := range ret.StepResult() {
+		fmt.Printf("step[%d] %s: %+v\n", i, p.Steps[i].Type, item)
+	}
 }
