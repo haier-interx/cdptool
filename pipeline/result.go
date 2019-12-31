@@ -75,6 +75,34 @@ func (p *Result) ParseFailed(id string, index int, err error) {
 	p.error = err
 }
 
+func (p *Result) IsParseFailed() bool {
+	if p.error == nil {
+		return false
+	}
+
+	if len(p.ExecuteTrace) == 0 {
+		if p.parseErrorStep != nil {
+			return true
+		} else {
+			return false
+		}
+	} else {
+		return false
+	}
+}
+
+func (p *Result) FailedStepResult() *StepResult {
+	if p.error == nil {
+		return nil
+	}
+
+	if len(p.ExecuteTrace) == 0 {
+		return p.parseErrorStep
+	} else {
+		return p.LastExecutingStep()
+	}
+}
+
 func (p *Result) Error() error {
 	if p.error == nil {
 		return nil
