@@ -3,9 +3,12 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 	"github.com/haier-interx/cdptool/action"
+	"github.com/haier-interx/cdptool/models"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -14,6 +17,7 @@ type Pipeline struct {
 	Timeout               time.Duration `json:"timeout" yaml:"timeout"`
 	Steps                 []*Step       `json:"steps" yaml:"steps"`
 	ScreenshotsWhenFailed bool          `json:"screenshots_when_failed" yaml:"screenshots_when_failed"`
+	NetworkEnable         bool          `json:"network_enable" yaml:"network_enable"`
 }
 
 func (p *Pipeline) Run(ctx context.Context, cds *CustomDefinitions) (ret *Result) {
@@ -35,6 +39,9 @@ func (p *Pipeline) Run(ctx context.Context, cds *CustomDefinitions) (ret *Result
 	ctx_chromedp, cancel2 := chromedp.NewContext(ctx_parent)
 	defer cancel2()
 	defer chromedp.Cancel(ctx_chromedp)
+
+	// 事件处理
+	p.deal_event(ctx_chromedp, ret)
 
 	ret.StartTime = time.Now()
 	err := chromedp.Run(ctx_chromedp, actions...)
@@ -63,7 +70,20 @@ func (p *Pipeline) Run(ctx context.Context, cds *CustomDefinitions) (ret *Result
 		return
 	}
 
+	//time.Sleep(5 * time.Second)
+
 	return
+}
+
+func (p *Pipeline) deal_event(ctx context.Context, ret *Result) {
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		if strings.HasPrefix(fmt.Sprintf("%T", ev), "*network.") && p.NetworkEnable {
+			err := ret.NetworkLogs.PutEvent(ev)
+			if err != nil {
+				log.Printf("deal network event failed %v", err)
+			}
+		}
+	})
 }
 
 func (p *Pipeline) Parse(ctx context.Context, cds *CustomDefinitions) (actions chromedp.Tasks, ret *Result) {
@@ -84,6 +104,12 @@ func (p *Pipeline) Parse(ctx context.Context, cds *CustomDefinitions) (actions c
 			ret.InitDuration = time.Since(ret.StartTime)
 			return nil
 		}))
+
+	// network enable
+	if p.NetworkEnable {
+		ret.NetworkLogs = models.NewNetworkLogs()
+		actions = append(actions, new(network.EnableParams))
+	}
 
 	for i, step := range p.Steps {
 		step.SetId(p.GenerateStepId(step, i))

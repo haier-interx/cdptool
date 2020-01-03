@@ -17,9 +17,9 @@ type Result struct {
 
 	JavaScriptResult          []*[]byte
 	Performances              []*models.PerformanceTiming
-	NetworkPerformances       []*NetworkPerformance
 	ScreenshotsFileName       []string
 	FailedScreenshotsFileName string
+	NetworkLogs               *models.NetworkLogs
 }
 
 type NetworkPerformance = []*models.PerformanceTiming
@@ -51,7 +51,6 @@ func NewResult(pipelineId string) *Result {
 		ExecuteTrace:        make([]*StepResult, 0),
 		JavaScriptResult:    make([]*[]byte, 0),
 		Performances:        make([]*models.PerformanceTiming, 0),
-		NetworkPerformances: make([]*NetworkPerformance, 0),
 		ScreenshotsFileName: make([]string, 0),
 		StartTime:           time.Now(),
 	}

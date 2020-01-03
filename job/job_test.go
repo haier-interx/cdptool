@@ -9,6 +9,7 @@ func TestInstance_Start(t *testing.T) {
 	yml := `pipelines:
   - id: vue-element-admin
     timeout: 10s
+    network_enable: true
     steps:
       - type: init
       - type: login
@@ -17,7 +18,6 @@ func TestInstance_Start(t *testing.T) {
         screenshots: 
           quality: 90
       - type: _performance_
-
 definitions:
   steps:
     - id: init
@@ -45,6 +45,14 @@ definitions:
 	rets := p.Start(context.Background())
 	for idx, ret := range rets {
 		if ret.Error() != nil {
+			for i, item := range ret.NetworkLogs.Items {
+				t.Logf("network[%d] docURL:%s\n", i, item.DocURL)
+				t.Logf("network[%d] method:%s name:%s\n", i, item.Method, item.Name)
+				t.Logf("network[%d] finish:%v failed:%v\n", i, item.IsFinished(), item.IsFailed())
+				t.Logf("network[%d] status:%d time:%d\n", i, item.Status, item.Time)
+				t.Logf("network[%d] detail:%+v\n", i, item.Metrics())
+			}
+
 			t.Fatalf("%s: %s", p.Pipelines[idx].Id, ret.Error())
 		}
 		t.Logf("%s: %+v", p.Pipelines[idx].Id, ret.Performances[0])

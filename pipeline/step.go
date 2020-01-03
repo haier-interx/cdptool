@@ -22,7 +22,6 @@ const (
 	STEP_PERFORMANCE   = "_performance_"
 	STEP_JAVASCRIPT    = "_javascript_"
 	STEP_DUMP          = "_dump_"
-	STEP_NETWORK       = "_network_"
 )
 
 var (
@@ -161,11 +160,6 @@ func (s *Step) Action(ret *Result, cds *CustomDefinitions) (tasks chromedp.Tasks
 		ret.JavaScriptResult = append(ret.JavaScriptResult, jsr)
 		tasks = append(tasks, chromedp.Evaluate(s.JavaScript, jsr))
 
-	case STEP_NETWORK:
-		prs := new(NetworkPerformance)
-		ret.NetworkPerformances = append(ret.NetworkPerformances, prs)
-		tasks = append(tasks, action.Network(prs))
-
 	case STEP_DUMP:
 		tasks = append(tasks, action.Dump())
 
@@ -219,7 +213,7 @@ func (s *Step) Action(ret *Result, cds *CustomDefinitions) (tasks chromedp.Tasks
 
 func IsBuildInStep(id string) bool {
 	switch id {
-	case STEP_NAVIGATE, STEP_WAIT, STEP_INPUT, STEP_CLICK, STEP_LANGUAGE, STEP_DEVICE_SCREEN, STEP_SCREENSHOTS, STEP_PERFORMANCE, STEP_JAVASCRIPT, STEP_DUMP, STEP_NETWORK:
+	case STEP_NAVIGATE, STEP_WAIT, STEP_INPUT, STEP_CLICK, STEP_LANGUAGE, STEP_DEVICE_SCREEN, STEP_SCREENSHOTS, STEP_PERFORMANCE, STEP_JAVASCRIPT, STEP_DUMP:
 		return true
 	default:
 		return false
